@@ -1,0 +1,385 @@
+function Encryption(){
+
+sum=0			#intilaizing counter with 0
+
+while read -n1 c; do			# reading the plain text file character by character
+
+	if [[ "$c" == "a" || "$c" == "A" ]]; then
+
+		sum=$((sum+1))
+
+	elif [[ "$c" == "b" || "$c" == "B" ]]; then		#adding the index of each character to the sum
+
+		sum=$((sum+2))
+
+	elif [[ "$c" == "c" || "$c" == "C" ]]; then
+
+		sum=$((sum+3))
+
+	elif [[ "$c" == "d" || "$c" == "D" ]]; then
+
+		sum=$((sum+4))	
+
+	elif [[ "$c" == "e" || "$c" == "E" ]]; then
+
+		sum=$((sum+5))
+
+	elif [[ "$c" == "f" || "$c" == "F" ]]; then
+
+		sum=$((sum+6))		
+
+	elif [[ "$c" == "g" || "$c" == "G" ]]; then
+
+		sum=$((sum+7))	
+
+	elif [[ "$c" == "h" || "$c" == "H" ]]; then
+
+		sum=$((sum+8))
+
+	elif [[ "$c" == "i" || "$c" == "I" ]]; then
+
+		sum=$((sum+9))		
+
+	elif [[ "$c" == "j" || "$c" == "J" ]]; then
+
+		sum=$((sum+10))	
+
+	elif [[ "$c" == "k" || "$c" == "K" ]]; then
+
+		sum=$((sum+11))		
+
+	elif [[ "$c" == "l" || "$c" == "L" ]]; then
+
+		sum=$((sum+12))		
+
+	elif [[ "$c" == "m" || "$c" == "M" ]]; then
+
+		sum=$((sum+13))		
+
+	elif [[ "$c" == "n" || "$c" == "N" ]]; then
+
+		sum=$((sum+14))		
+
+	elif [[ "$c" == "o" || "$c" == "O" ]]; then
+
+		sum=$((sum+15))
+
+	elif [[ "$c" == "p" || "$c" == "P" ]]; then
+
+		sum=$((sum+16))
+
+	elif [[ "$c" == "q" || "$c" == "Q" ]]; then
+
+		sum=$((sum+17))
+
+	elif [[ "$c" == "r" || "$c" == "R" ]]; then
+
+		sum=$((sum+18))		
+
+	elif [[ "$c" == "s" || "$c" == "S" ]]; then
+
+		sum=$((sum+19))	
+
+	elif [[ "$c" == "t" || "$c" == "T" ]]; then
+
+		sum=$((sum+20))
+
+	elif [[ "$c" == "u" || "$c" == "U" ]]; then
+
+		sum=$((sum+21))
+
+	elif [[ "$c" == "v" || "$c" == "V" ]]; then
+
+		sum=$((sum+22))
+
+	elif [[ "$c" == "w" || "$c" == "W" ]]; then
+
+		sum=$((sum+23))
+
+	elif [[ "$c" == "x" || "$c" == "X" ]]; then
+
+		sum=$((sum+24))
+
+	elif [[ "$c" == "y" || "$c" == "Y" ]]; then
+
+		sum=$((sum+25))
+
+	elif [[ "$c" == "z" || "$c" == "Z" ]]; then
+
+		sum=$((sum+26))
+
+	else							#since there is no non-alpha character, whenever the loop reads a space or newline it returns the sum of each word
+
+	key=$((sum%256))					# finding the key of each sum
+
+	echo $key >> keys.txt					# redirecting the key of each word to keys file
+
+	sum=0							#reintilaizing the sum to 0 to use for next words
+
+	fi
+
+done < "$inputfile"
+
+Decimalkey=`sort -n keys.txt | tail -1`				# soring keys file and returning the tail of it which is the max of sums mod 256 which is our key in decimal
+
+Binarykey=$(echo 'obase=2;' ${Decimalkey}| bc )			#converting key from decimal to binary
+
+Keyy=`printf "%0*d\n" 8 $Binarykey`				#this command is important since the converted key is not 8 bit so it appends zeros to the left of the key untill its 8 bit
+
+while read -r line; do						#since the message can be multi lines this loop goes for every line in the inputfile
+
+	echo -n $line | perl -lpe '$_=join " ", unpack"(B8)*"' | tr ' ' '\n' > PlainTextB.txt	
+
+		
+
+#above command gets the line words and change the whole line to aasci with each characther is 8 bit binary according to aasci with each word aasci separeted by space and then it changes the space to newline and redirect it to PlainTextB.txt file to be used for the second loop
+
+	
+
+	while read -r Line; do					#loop that goes for each character aasci in each line to do the encryption
+
+		XorResultD=`echo $(( 2#$Line ^ 2#$Keyy ))`	#xoring each character with the key
+
+		XorResultB=$(echo 'obase=2;' ${XorResultD}| bc )	#converting xor result to binary since the output of the xor is decimal
+
+		LastFour=`printf "%0*d\n" 8 $XorResultB | cut -c5-8`	#getting the last four characters of xor result
+
+		FirstFour=`printf "%0*d\n" 8 $XorResultB | cut -c1-4`	#getting the first four characters of xor result
+
+		Encrypted=$LastFour$FirstFour				#swapped xor result			
+
+		echo $Encrypted >> Encrypted.txt			#redirecting xor result of each character to Encrypted.txt file
+
+		done < PlainTextB.txt
+
+	cat Encrypted.txt | tr '\n' ' ' | head -c-1 >> Cipher.txt	#this removes an extra space in the last of each line that made me some troubles in decryption
+
+	echo "" >> Cipher.txt						# newline for the new line encryption
+
+	rm -r Encrypted.txt						#removing Encrypted.txt file to be used for the later lines encryptions
+
+done < $inputfile
+
+LastFourKey=`echo $Keyy | cut -c5-8`				#getting the last four characters of key
+
+FirstFourKey=`echo $Keyy | cut -c1-4`				#getting the first four characters of key
+
+EncryptedKey=$LastFourKey$FirstFourKey				#swapped key
+
+LastLineNoKey=`tail -n -1 Cipher.txt`				#returning the last line of the cipher
+
+LastLineWithKey="$LastLineNoKey $EncryptedKey"			#appending the key with the last line of the cipher which means the key will be the last character
+
+cat Cipher.txt | head -n -1  > temp.txt ; mv temp.txt Cipher.txt			#since the cipher texts contains the last line with no key this commands removes the last line 
+
+echo $LastLineWithKey >> Cipher.txt							# redirecting the last line with key appended to the cipher text
+
+echo "Plain Text Is: "
+
+cat $inputfile
+
+echo "Key in Decimal Is: "
+
+echo "$Decimalkey"
+
+echo "Key In Binary Is :"
+
+echo "$Keyy"
+
+echo "input the name of the cipher text file"			#the file that will contain the final encrypted message
+
+read cipherfile
+
+cat Cipher.txt > "$cipherfile"					#redirecting the encrypted message in Cipher.txt to the user chosen cipher text
+
+echo "Encrypted Message in Binary is: "
+
+cat "$cipherfile" | tr -d " \t | tr '\n' ' '"			# printing the ciphertext of all lines with no spaces or newlines
+
+echo ""
+
+}
+
+function Decryption(){
+
+Key=`cat $cipherfile | tr ' ' '\n' | tail -1`			
+
+
+
+#above command, since the key is the last character and the cipher file contains the encryption of each line and each character encrypted separeted by spaces the key will be the last line after changing spaces to new line and returning last line
+
+
+
+LastFourKey=`echo $Key | cut -c5-8`		#getting the last four characters of key		
+
+FirstFourKey=`echo $Key | cut -c1-4`		#getting the first four characters of key
+
+DecryptedKey=$LastFourKey$FirstFourKey		#swapped key which is the original key
+
+KeyD=$(echo 'ibase=2;obase=A;' ${DecryptedKey}| bc )		#converting key to decmimal
+
+cat $cipherfile | head -c-9  > temp.txt ; mv temp.txt EncryptedNoKey.txt		#this command will return the whole cipherfile without the key and space thats why (9)
+
+echo "" >> EncryptedNoKey.txt		#the next loop didn't work without this newline
+
+while read -r line; do			# a loop that goes for each line in the encrypted message since it might be multilined message
+
+	echo $line | tr ' ' '\n' > EncryptedLines.txt			
+
+	
+
+#above, taking each line and translating spaces to newlines and redirecting it to EncryptedLines.txt to be used in the next loop which means that each line contains encrypted char of each line
+
+
+
+	while read -r Line; do						#a loop that goes on each encrypted character in each line
+
+		LastFour=`echo -n $Line | cut -c5-8`			#getting the last four characters of each encrypted character
+
+		FirstFour=`echo -n $Line | cut -c1-4`			#getting the first four characters of each encrypted character
+
+		Decrypted=$LastFour$FirstFour				#swapped character
+
+		XorResultDecD=`echo $(( 2#$Decrypted ^ 2#$DecryptedKey ))`	#xoring the swapped character with the restored key
+
+		XorResultDecB=$(echo 'obase=2;' ${XorResultDecD}| bc )		#converting xor result to binary since the output of the xor is decimal
+
+		XorResultDecBF=`printf "%0*d\n" 8 $XorResultDecB`		#making the xor result 8 bits by adding extra zeros to the left of the result untill its 8 bit
+
+		echo  $XorResultDecBF >> DecryptedText.txt			# redirecting each decrypter character to DecryptedText.txt file
+
+	done < EncryptedLines.txt
+
+	cat DecryptedText.txt | tr '\n' ' ' | head -c-1 >> DecryptedLines.txt 
+
+		
+
+#above, since each decrypted character for each line is in a line in DecryptedText.txt, this command translate the newline into spaces and redirect it to DecryptedLines.txt and (-c-1) to remove an extra space at the last of each line
+
+
+
+	echo "" >> DecryptedLines.txt		#the next loop didn't work without this newline
+
+	rm -r DecryptedText.txt			#removing DecryptedText.txt to be used in later lines decryption
+
+done < EncryptedNoKey.txt
+
+cat DecryptedLines.txt > DecryptedLinesFinal.txt	#redirecting DecryptedLines.txt to the DecryptedLinesFinal.txt
+
+rm -r DecryptedLines.txt				#removing DecryptedLines.txt to be used for later times
+
+while read -r line; do
+
+	echo $line | perl -lape '$_=pack"(B8)*",@F' >> Decrypted.txt	
+
+
+
+# above, since each line in DecryptedLinesFinal.txt contains the decrypted message for each line of the inputfile this loop convert each line aasci to characters and redirect it to Decrypted.txt which is the input message
+
+done < DecryptedLinesFinal.txt
+
+echo "Key in Decimal Is"
+
+echo "$KeyD"
+
+echo "Key in binary Is: "
+
+echo "$DecryptedKey"
+
+echo "input the name of the plain text file"
+
+read plaintext
+
+cat Decrypted.txt > $plaintext
+
+echo "Decrypted Message in Binary IS: "
+
+cat DecryptedLinesFinal.txt | tr '\n' ' ' | tr -d " \t"		# decrypted message in binary without newlines or spaces
+
+echo ""
+
+echo "Decrypted Message IS: "
+
+cat $plaintext
+
+}
+
+while true
+
+do
+
+	echo "Text Message Encryption and Decryption Menu"
+
+	echo "1) Enter e For Encryption"
+
+	echo "2) Enter d For Decryption"
+
+	echo "3) Press q To Quit"
+
+	read choice
+
+	if [ $choice == "e" ]; then
+
+		echo "Please input the name of the plain text file"
+
+		read inputfile
+
+		if [ ! -e "$inputfile" ]; then			#checking if input file exist
+
+			echo "File Doesn't Exist"
+
+		elif grep "[^A-Za-z \t]" "$inputfile" > /dev/null		#checking if file contans non alpha chars
+
+		then
+
+			echo "error the file contains a non-alphabet characters" 
+
+		else
+
+			Encryption
+
+			rm -r keys.txt										#removing encryption used files that are not needed anymore
+
+			rm -r PlainTextB.txt
+
+			rm -r Cipher.txt
+
+		fi
+
+	elif [ $choice == "d" ] ; then
+
+	echo "Please input the name of the cipher text file"
+
+		read cipherfile
+
+		if [ ! -e "$cipherfile" ]; then
+
+			echo "File Doesn't Exist" 
+
+		else
+
+			Decryption					##removing decryption used files that are not needed anymore
+
+			rm -r Decrypted.txt
+
+			rm -r EncryptedLines.txt
+
+			rm -r DecryptedLinesFinal.txt
+
+			rm -r EncryptedNoKey.txt
+
+		fi
+
+	elif [ $choice == "q" ] ; then
+
+		echo "Bye Bye"
+
+		exit 0
+
+	else
+
+	echo "Invaild Option"
+
+	fi
+
+done
